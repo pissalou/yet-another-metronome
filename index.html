@@ -87,6 +87,17 @@ input[type=range]{width:100%;accent-color:var(--brass);height:2rem}
 .start[aria-pressed="true"]{background:var(--red);color:#fff}
 .hint{text-align:center;color:var(--ink-soft);font-size:.875rem;margin:.6rem 0 0}
 
+.transport{display:grid;grid-template-columns:1fr auto;gap:.75rem;margin-top:.5rem}
+.transport .start{margin-top:0}
+.tap{
+  font:600 1.05rem/1 "Work Sans",system-ui,sans-serif;height:3.5rem;padding:0 1.4rem;
+  border-radius:1.75rem;border:2px solid var(--brass);background:transparent;color:var(--ink);
+  cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none;
+}
+.tap.hit{background:var(--brass);color:var(--btn-ink)}
+.tap kbd{font:inherit;font-weight:500;opacity:.7;margin-left:.35rem}
+.tap-info{text-align:center;color:var(--ink-soft);font-size:.9rem;margin:.6rem 0 0}
+
 button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
 
 .timing{
@@ -158,8 +169,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
     </div>
 
     <div>
-      <button class="start" id="start" aria-pressed="false">Start</button>
-      <p class="hint">Space starts and stops. Arrow keys change tempo, Shift for steps of 5.</p>
+      <div class="transport">
+        <button class="start" id="start" aria-pressed="false">Start</button>
+        <button class="tap" id="tap" aria-keyshortcuts="t">Tap tempo<kbd>T</kbd></button>
+      </div>
+      <p class="tap-info" id="tapInfo" aria-live="polite">Tap at least twice in time with the beat</p>
+      <p class="hint">Space starts and stops. T taps the tempo. Arrow keys change tempo, Shift for steps of 5.</p>
     </div>
   </div>
 
@@ -423,9 +438,56 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
   setMeter(4);
   setTempo(120);
 
+  /* ---------- Tap tempo: simple moving average of the last taps ---------- */
+  const TAP_WINDOW = 4;        // number of intervals averaged
+  const TAP_RESET_MS = 2000;   // a longer pause starts a fresh count
+  const taps = [];             // timestamps (ms, performance.now() origin)
+  const tapBtn = $("tap"), tapInfo = $("tapInfo");
+  let tapFlash = 0, tapIdle = 0;
+
+  function tap(stamp) {
+    const last = taps[taps.length - 1];
+    if (last !== undefined && stamp - last > TAP_RESET_MS) taps.length = 0;
+
+    // An interval far from the running average means a new tempo or a stray tap:
+    // keep only the latest tap so the average follows the new tempo at once.
+    if (taps.length >= 2) {
+      const avg = (last - taps[0]) / (taps.length - 1);
+      const iv = stamp - last;
+      if (iv < avg * 0.6 || iv > avg * 1.6) taps.splice(0, taps.length - 1);
+    }
+
+    taps.push(stamp);
+    if (taps.length > TAP_WINDOW + 1) taps.shift();   // slide the window
+
+    if (taps.length >= 2) {
+      // Mean of consecutive intervals in the window = span / count.
+      const avg = (taps[taps.length - 1] - taps[0]) / (taps.length - 1);
+      setTempo(60000 / avg);
+      const n = taps.length - 1;
+      tapInfo.textContent = `Averaging ${n} interval${n === 1 ? "" : "s"}`;
+    } else {
+      tapInfo.textContent = "Keep tapping";
+    }
+
+    tapBtn.classList.add("hit");
+    clearTimeout(tapFlash);
+    tapFlash = setTimeout(() => tapBtn.classList.remove("hit"), 90);
+    clearTimeout(tapIdle);
+    tapIdle = setTimeout(() => { taps.length = 0; tapInfo.textContent = "Tap at least twice in time with the beat"; }, TAP_RESET_MS);
+  }
+
+  // pointerdown fires on contact, so taps are timed without click delay.
+  tapBtn.addEventListener("pointerdown", e => { e.preventDefault(); tap(e.timeStamp); });
+  // Keyboard activation of the focused button (Enter or Space) arrives as a click with detail 0.
+  tapBtn.addEventListener("click", e => { if (e.detail === 0) tap(e.timeStamp); });
+
   document.addEventListener("keydown", e => {
     const t = e.target;
     const inControl = t && (t.tagName === "INPUT" || t.tagName === "BUTTON");
+    if ((e.key === "t" || e.key === "T") && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault(); tap(e.timeStamp); return;
+    }
     if (e.code === "Space" && !inControl) { e.preventDefault(); running ? stop() : start(); }
     if (!inControl && (e.key === "ArrowUp" || e.key === "ArrowRight")) { e.preventDefault(); setTempo(tempo + (e.shiftKey ? 5 : 1)); }
     if (!inControl && (e.key === "ArrowDown" || e.key === "ArrowLeft")) { e.preventDefault(); setTempo(tempo - (e.shiftKey ? 5 : 1)); }
