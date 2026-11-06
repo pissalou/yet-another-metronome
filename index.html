@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Metronome (Copy)</title>
+<title>Metronome</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;800&family=Work+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
@@ -45,7 +45,7 @@ main{width:100%;max-width:34rem;padding:2rem 1.25rem 2.5rem}
 .face{
   display:grid;grid-template-columns:auto 1fr;align-items:center;gap:1.5rem;
 }
-.lamp{width:clamp(9rem,40vw,12.5rem);height:auto;display:block;overflow:visible}
+.pendulum{width:clamp(9rem,40vw,12.5rem);height:auto;display:block;overflow:visible}
 .tempo{min-width:0}
 .bpm{
   font-family:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
@@ -106,7 +106,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
 <body>
 <main>
   <section class="face" aria-label="Metronome">
-    <svg class="lamp" viewBox="0 0 200 256" role="img" aria-label="Metronome pendulum">
+    <svg class="pendulum" viewBox="0 0 200 256" role="img" aria-label="Metronome pendulum">
       <!-- case -->
       <path d="M78,22 L122,22 L182,242 L18,242 Z" fill="var(--brass)" stroke="var(--brass-dark)" stroke-width="2.5" stroke-linejoin="round"/>
       <path d="M87,36 L113,36 L158,222 L42,222 Z" fill="var(--glass)" stroke="var(--brass-dark)" stroke-width="1.5" stroke-linejoin="round"/>
@@ -163,12 +163,12 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
     </div>
   </div>
 
-  <dl class="timing" aria-label="Scheduler timing">
+  <!--dl class="timing" aria-label="Scheduler timing">
     <div><dt>Wake-up tick</dt><dd id="tTick">25 ms</dd></div>
     <div><dt>Schedule ahead</dt><dd id="tAhead">100 ms</dd></div>
     <div><dt>Tick runs in</dt><dd id="tKind">–</dd></div>
     <div><dt>Output latency</dt><dd id="tLat">–</dd></div>
-  </dl>
+  </dl-->
 </main>
 
 <script>
@@ -200,8 +200,8 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
   const bpmEl = $("bpm"), markingEl = $("marking"), tempoEl = $("tempo"),
         startBtn = $("start"), meterEl = $("meter"), pilotsEl = $("pilots"),
         rod = $("rod"), bob = $("bob"), bobLit = $("bobLit");
-  $("tTick").textContent = TICK_MS + " ms";
-  $("tAhead").textContent = SCHEDULE_AHEAD * 1000 + " ms";
+  //$("tTick").textContent = TICK_MS + " ms";
+  //$("tAhead").textContent = SCHEDULE_AHEAD * 1000 + " ms";
 
   /* ---------- Click samples (synthesized once into AudioBuffers) ---------- */
   function makeClick(freq) {
@@ -245,7 +245,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
         e.preventDefault?.();
         impl = mainThread();
         if (wanted) impl.start(lastMs);
-        $("tKind").textContent = impl.kind;
+        //$("tKind").textContent = impl.kind;
       };
       impl = { kind: "Web Worker",
         start: ms => { wanted = true; lastMs = ms; w.postMessage({ cmd: "start", ms }); },
@@ -291,7 +291,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
 
   /* ---------- Visual sync ---------- */
   // The context time that is reaching the speakers right now. currentTime is when audio
-  // is rendered, so the lamp would flash early by the output latency without this.
+  // is rendered, so the pendulum would flash early by the output latency without this.
   function heardTime() {
     if (ctx.getOutputTimestamp) {
       const ts = ctx.getOutputTimestamp();
@@ -360,9 +360,9 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--amber);outline-
     running = true;
     scheduler();                       // fill the first window immediately
     ticker.start(TICK_MS);
-    $("tKind").textContent = ticker.kind;
+    //$("tKind").textContent = ticker.kind;
     const lat = (ctx.outputLatency || ctx.baseLatency || 0) * 1000;
-    $("tLat").textContent = lat ? lat.toFixed(1) + " ms" : "not reported";
+    //$("tLat").textContent = lat ? lat.toFixed(1) + " ms" : "not reported";
     startBtn.textContent = "Stop";
     startBtn.setAttribute("aria-pressed", "true");
     if (!rafId) rafId = requestAnimationFrame(draw);
